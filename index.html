@@ -1,0 +1,645 @@
+<!--
+  Grist Email Composer Pro Widget
+  Copyright 2026 Said Hamadou (isaytoo)
+  Licensed under the Apache License, Version 2.0
+  https://github.com/isaytoo/grist-email-composer-widget
+-->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grist Email Composer Pro</title>
+  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --primary: #0078d4;
+      --primary-dark: #106ebe;
+      --primary-light: #deecf9;
+      --success: #107c10;
+      --warning: #ffb900;
+      --danger: #d13438;
+      --bg-main: #f3f2f1;
+      --bg-white: #ffffff;
+      --bg-hover: #f5f5f5;
+      --text-primary: #323130;
+      --text-secondary: #605e5c;
+      --text-muted: #a19f9d;
+      --border: #edebe9;
+      --border-dark: #c8c6c4;
+    }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-main);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 28px);
+      background: var(--bg-white);
+      border-radius: 8px;
+      margin: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    /* Header Toolbar */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--bg-white);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .toolbar-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .toolbar-title svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .toolbar-spacer {
+      flex: 1;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-secondary {
+      background: var(--bg-main);
+      color: var(--text-primary);
+      border: 1px solid var(--border-dark);
+    }
+
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+
+    .btn-icon {
+      padding: 8px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+
+    .btn-icon:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    /* Main Content */
+    .main-content {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Sidebar - Recipients */
+    .sidebar {
+      width: 280px;
+      background: var(--bg-main);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 12px 16px;
+      background: var(--bg-white);
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .recipient-count {
+      background: var(--primary);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .recipient-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--bg-white);
+      border-radius: 6px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .recipient-item:hover {
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .recipient-item.selected {
+      border-left: 3px solid var(--primary);
+      background: var(--primary-light);
+    }
+
+    .recipient-item.excluded {
+      opacity: 0.5;
+      text-decoration: line-through;
+    }
+
+    .recipient-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .recipient-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .recipient-name {
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .recipient-email {
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .recipient-checkbox {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+    }
+
+    /* Email Composer */
+    .composer {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-white);
+      overflow: hidden;
+    }
+
+    .composer-fields {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .field-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .field-label {
+      width: 80px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .field-input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+
+    .field-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .field-tags {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      min-height: 38px;
+      background: var(--bg-white);
+    }
+
+    .email-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .email-tag-remove {
+      cursor: pointer;
+      font-weight: bold;
+      opacity: 0.7;
+    }
+
+    .email-tag-remove:hover {
+      opacity: 1;
+    }
+
+    .composer-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    .composer-textarea {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: none;
+      line-height: 1.6;
+    }
+
+    .composer-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Templates Panel */
+    .templates-panel {
+      width: 260px;
+      background: var(--bg-main);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .templates-panel.hidden {
+      display: none;
+    }
+
+    .template-item {
+      padding: 12px;
+      background: var(--bg-white);
+      border-radius: 6px;
+      margin: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .template-item:hover {
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .template-title {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .template-preview {
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Variables Panel */
+    .variables-bar {
+      padding: 8px 16px;
+      background: var(--bg-main);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .variables-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .variable-chip {
+      padding: 4px 10px;
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .variable-chip:hover {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* Status Bar */
+    .status-bar {
+      padding: 8px 16px;
+      background: var(--bg-main);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      bottom: 40px;
+      right: 20px;
+      z-index: 1000;
+    }
+
+    .toast {
+      padding: 12px 20px;
+      background: var(--text-primary);
+      color: white;
+      border-radius: 6px;
+      margin-top: 8px;
+      animation: slideIn 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .toast.success {
+      background: var(--success);
+    }
+
+    .toast.error {
+      background: var(--danger);
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Empty State */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    /* Table Selector */
+    .table-selector {
+      padding: 8px 16px;
+      background: var(--bg-white);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .table-selector select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 14px;
+      background: var(--bg-white);
+    }
+
+    .column-mapper {
+      padding: 8px 16px;
+      background: var(--primary-light);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .column-mapper label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--primary-dark);
+    }
+
+    .column-mapper select {
+      padding: 6px 10px;
+      border: 1px solid var(--primary);
+      border-radius: 4px;
+      font-size: 13px;
+      background: var(--bg-white);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="toolbar-title">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+        </svg>
+        <span>Email Composer Pro</span>
+      </div>
+      <div class="toolbar-spacer"></div>
+      <button class="btn btn-secondary" onclick="toggleTemplates()">
+        📋 Templates
+      </button>
+      <button class="btn btn-primary" onclick="composeEmail()">
+        ✉️ Composer l'email
+      </button>
+    </div>
+
+    <!-- Table & Column Selector -->
+    <div class="table-selector">
+      <select id="table-select" onchange="selectTable(this.value)">
+        <option value="">-- Sélectionnez une table --</option>
+      </select>
+    </div>
+
+    <div class="column-mapper" id="column-mapper" style="display: none;">
+      <label>Colonne Email:</label>
+      <select id="email-column"></select>
+      <label>Colonne Nom:</label>
+      <select id="name-column"></select>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Recipients Sidebar -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <span>📬 Destinataires</span>
+          <span class="recipient-count" id="recipient-count">0</span>
+        </div>
+        <div class="sidebar-content" id="recipients-list">
+          <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <div>Sélectionnez une table avec des emails</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Email Composer -->
+      <div class="composer">
+        <div class="composer-fields">
+          <div class="field-row">
+            <span class="field-label">De :</span>
+            <input type="email" class="field-input" id="from-email" placeholder="votre@email.com">
+          </div>
+          <div class="field-row">
+            <span class="field-label">À :</span>
+            <div class="field-tags" id="to-tags">
+              <span style="color: var(--text-muted); font-size: 13px;">Les destinataires sélectionnés apparaîtront ici</span>
+            </div>
+          </div>
+          <div class="field-row">
+            <span class="field-label">Objet :</span>
+            <input type="text" class="field-input" id="subject" placeholder="Objet de votre email">
+          </div>
+        </div>
+
+        <div class="composer-body">
+          <textarea class="composer-textarea" id="email-body" placeholder="Rédigez votre message ici...
+
+Vous pouvez utiliser des variables comme {{Nom}}, {{Prenom}}, etc.
+Ces variables seront remplacées par les valeurs de chaque destinataire."></textarea>
+        </div>
+
+        <div class="variables-bar" id="variables-bar">
+          <span class="variables-label">Variables disponibles :</span>
+          <span style="color: var(--text-muted); font-size: 12px;">Sélectionnez une table pour voir les variables</span>
+        </div>
+      </div>
+
+      <!-- Templates Panel -->
+      <div class="templates-panel hidden" id="templates-panel">
+        <div class="sidebar-header">
+          <span>📋 Templates</span>
+          <button class="btn-icon" onclick="toggleTemplates()">✕</button>
+        </div>
+        <div class="sidebar-content">
+          <div class="template-item" onclick="applyTemplate('invitation')">
+            <div class="template-title">📨 Invitation</div>
+            <div class="template-preview">Vous êtes cordialement invité(e)...</div>
+          </div>
+          <div class="template-item" onclick="applyTemplate('rappel')">
+            <div class="template-title">⏰ Rappel</div>
+            <div class="template-preview">Nous vous rappelons que...</div>
+          </div>
+          <div class="template-item" onclick="applyTemplate('confirmation')">
+            <div class="template-title">✅ Confirmation</div>
+            <div class="template-preview">Nous confirmons votre...</div>
+          </div>
+          <div class="template-item" onclick="applyTemplate('remerciement')">
+            <div class="template-title">🙏 Remerciement</div>
+            <div class="template-preview">Nous tenons à vous remercier...</div>
+          </div>
+          <div class="template-item" onclick="applyTemplate('notification')">
+            <div class="template-title">🔔 Notification</div>
+            <div class="template-preview">Nous avons le plaisir de vous informer...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <span id="status-text">Prêt</span>
+      <span id="status-info"></span>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Footer -->
+  <footer style="position: fixed; bottom: 0; left: 0; right: 0; background: #f3f2f1; border-top: 1px solid #edebe9; padding: 4px 12px; font-size: 0.7em; color: #a19f9d; display: flex; justify-content: space-between; z-index: 1000;">
+    <span>© 2026 Said Hamadou (isaytoo)</span>
+    <a href="https://gristup.fr" target="_blank" style="color: #0078d4; text-decoration: none;">gristup.fr</a>
+  </footer>
+
+  <script src="widget.js"></script>
+</body>
+</html>
