@@ -3,6 +3,7 @@
  * Copyright 2026 Said Hamadou (isaytoo)
  * Licensed under the Apache License, Version 2.0
  * https://github.com/isaytoo/grist-email-composer-widget
+ * Version: 1.0.1
  */
 
 // =============================================================================
