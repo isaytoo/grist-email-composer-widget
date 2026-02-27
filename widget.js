@@ -479,12 +479,8 @@ function composeEmail() {
     '&subject=' + encodeURIComponent(subject) +
     '&body=' + encodeURIComponent(body);
   
-  // Open in parent window (to escape iframe)
-  if (window.parent && window.parent !== window) {
-    window.parent.open(mailtoUrl, '_blank');
-  } else {
-    window.open(mailtoUrl, '_blank');
-  }
+  // Open mailto link - use window.location for cross-origin compatibility
+  window.location.href = mailtoUrl;
   
   showToast('✉️ Client email ouvert avec ' + selectedEmails.length + ' destinataires', 'success');
   updateStatus('Email composé pour ' + selectedEmails.length + ' destinataires');
