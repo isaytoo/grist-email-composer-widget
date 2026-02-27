@@ -441,6 +441,22 @@ function applyTemplate(templateId) {
 // EMAIL COMPOSITION
 // =============================================================================
 
+// Replace variables in text with record values
+function replaceVariables(text, record) {
+  var result = text;
+  columns.forEach(function(col) {
+    var value = record[col] !== null && record[col] !== undefined ? String(record[col]) : '';
+    var regex = new RegExp('\\{\\{' + col + '\\}\\}', 'gi');
+    result = result.replace(regex, value);
+  });
+  return result;
+}
+
+// Check if text contains variables
+function hasVariables(text) {
+  return /\{\{[^}]+\}\}/.test(text);
+}
+
 function composeEmail() {
   var fromEmail = document.getElementById('from-email').value.trim();
   var subject = document.getElementById('subject').value.trim();
@@ -467,24 +483,110 @@ function composeEmail() {
     return;
   }
   
-  // Get selected emails
-  var selectedEmails = records
-    .filter(function(rec) { return selectedRecipients.has(rec.id); })
-    .map(function(rec) { return String(rec[emailColumn]).trim(); })
-    .filter(function(email) { return isValidEmail(email); });
+  // Get selected records
+  var selectedRecs = records.filter(function(rec) { 
+    return selectedRecipients.has(rec.id) && isValidEmail(String(rec[emailColumn]).trim()); 
+  });
   
-  // Build mailto URL
-  // Using BCC for privacy
-  var mailtoUrl = 'mailto:' + fromEmail + 
-    '?bcc=' + encodeURIComponent(selectedEmails.join(',')) +
-    '&subject=' + encodeURIComponent(subject) +
-    '&body=' + encodeURIComponent(body);
+  // Check if we have variables in subject or body
+  var useVariables = hasVariables(subject) || hasVariables(body);
   
-  // Open mailto link - use window.location for cross-origin compatibility
+  if (useVariables && selectedRecs.length > 1) {
+    // Individual emails with variables - open first one, show instructions
+    composeIndividualEmails(fromEmail, subject, body, selectedRecs);
+  } else if (useVariables && selectedRecs.length === 1) {
+    // Single recipient with variables
+    var rec = selectedRecs[0];
+    var email = String(rec[emailColumn]).trim();
+    var personalizedSubject = replaceVariables(subject, rec);
+    var personalizedBody = replaceVariables(body, rec);
+    
+    var mailtoUrl = 'mailto:' + email + 
+      '?subject=' + encodeURIComponent(personalizedSubject) +
+      '&body=' + encodeURIComponent(personalizedBody);
+    
+    window.location.href = mailtoUrl;
+    showToast('✉️ Email personnalisé ouvert', 'success');
+  } else {
+    // Bulk email without variables (BCC)
+    var emails = selectedRecs.map(function(rec) { 
+      return String(rec[emailColumn]).trim(); 
+    });
+    
+    var mailtoUrl = 'mailto:' + fromEmail + 
+      '?bcc=' + encodeURIComponent(emails.join(',')) +
+      '&subject=' + encodeURIComponent(subject) +
+      '&body=' + encodeURIComponent(body);
+    
+    window.location.href = mailtoUrl;
+    showToast('✉️ Email groupé ouvert avec ' + emails.length + ' destinataires en BCC', 'success');
+  }
+  
+  updateStatus('Email composé pour ' + selectedRecs.length + ' destinataires');
+}
+
+// Handle individual emails with variables
+var pendingEmails = [];
+var currentEmailIndex = 0;
+
+function composeIndividualEmails(fromEmail, subject, body, recipients) {
+  pendingEmails = recipients.map(function(rec) {
+    var email = String(rec[emailColumn]).trim();
+    return {
+      to: email,
+      subject: replaceVariables(subject, rec),
+      body: replaceVariables(body, rec),
+      name: nameColumn && rec[nameColumn] ? String(rec[nameColumn]) : email
+    };
+  });
+  currentEmailIndex = 0;
+  
+  showToast('📧 ' + pendingEmails.length + ' emails à envoyer. Cliquez "Email suivant" après chaque envoi.', 'info');
+  showNextEmailButton();
+  openCurrentEmail();
+}
+
+function showNextEmailButton() {
+  // Add a floating button for next email
+  var existing = document.getElementById('next-email-btn');
+  if (existing) existing.remove();
+  
+  if (currentEmailIndex >= pendingEmails.length) {
+    showToast('✅ Tous les emails ont été composés !', 'success');
+    return;
+  }
+  
+  var btn = document.createElement('button');
+  btn.id = 'next-email-btn';
+  btn.className = 'btn btn-primary';
+  btn.style.cssText = 'position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 1001; padding: 12px 24px; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);';
+  btn.innerHTML = '📧 Email suivant (' + (currentEmailIndex + 1) + '/' + pendingEmails.length + ') - ' + pendingEmails[currentEmailIndex].name;
+  btn.onclick = function() {
+    openCurrentEmail();
+  };
+  document.body.appendChild(btn);
+}
+
+function openCurrentEmail() {
+  if (currentEmailIndex >= pendingEmails.length) {
+    var btn = document.getElementById('next-email-btn');
+    if (btn) btn.remove();
+    showToast('✅ Tous les emails ont été composés !', 'success');
+    return;
+  }
+  
+  var email = pendingEmails[currentEmailIndex];
+  var mailtoUrl = 'mailto:' + email.to + 
+    '?subject=' + encodeURIComponent(email.subject) +
+    '&body=' + encodeURIComponent(email.body);
+  
   window.location.href = mailtoUrl;
   
-  showToast('✉️ Client email ouvert avec ' + selectedEmails.length + ' destinataires', 'success');
-  updateStatus('Email composé pour ' + selectedEmails.length + ' destinataires');
+  currentEmailIndex++;
+  
+  setTimeout(function() {
+    showNextEmailButton();
+  }, 500);
 }
 
 // =============================================================================
